@@ -3,6 +3,12 @@
 import sys
 
 
+LDI = 0b10000010
+PRN = 0b01000111
+MUL = 0b10100010
+HLT = 0b00000001
+
+
 class CPU:
     """Main CPU class."""
 
@@ -16,23 +22,35 @@ class CPU:
     def load(self):
         """Load a program into memory."""
 
-        address = 0
+        try:
+            file_name = sys.argv[1]
+            with open(file_name) as f:
+                address = 0
 
-        # For now, we've just hardcoded a program:
+                for line in f:
+                    num_string = line.split("#")[0].strip()
 
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
+                    if num_string == "":
+                        continue
+                    else:
+                        self.ram[address] = int(num_string, 2)
+                        address += 1
+        except FileNotFoundError:
+            print("I can not find the file!!!!!!!!")
+        print(self.ram)
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010,  # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111,  # PRN R0
+        #     0b00000000,
+        #     0b00000001,  # HLT
+        # ]
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        # for instruction in program:
+        #     self.ram[address] = instruction
+        #     address += 1
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -65,34 +83,42 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        operand_a = self.pc + 1
-        operand_b = self.pc + 2
         running = True
 
         while running:
             inst = self.ram_read(self.pc)
+            operand_a = self.pc + 1
+            operand_b = self.pc + 2
 
             # decode
-            if inst == 0b00000001:
+            if inst == HLT:
                 # execute
                 running = False
                 self.pc += 1
 
-            elif inst == 0b10000010:
+            elif inst == LDI:
                 # execute
                 # get the num.
                 num = self.ram[operand_b]
                 # get the reg index.
-                reg_index = operand_a
+                reg_index = self.ram[operand_a]
                 # put the number in the registers list at the index of reg_index
                 self.ram_write(num, reg_index)
                 self.pc += 3
 
-            elif inst == 0b01000111:
+            elif inst == PRN:
                 # execute
-                reg_index = operand_a
+                reg_index = self.ram[operand_a]
                 print(self.reg[reg_index])
                 self.pc += 2
+
+            elif inst == MUL:
+                # execute
+                reg_index1 = self.ram[operand_a]
+                reg_index2 = self.ram[operand_b]
+                res = self.reg[reg_index1] * self.reg[reg_index2]
+                self.ram_write(res, reg_index1)
+                self.pc += 3
 
             # decode
             else:
