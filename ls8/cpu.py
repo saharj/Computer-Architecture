@@ -7,6 +7,10 @@ LDI = 0b10000010
 PRN = 0b01000111
 MUL = 0b10100010
 HLT = 0b00000001
+PUSH = 0b01000101
+POP = 0b01000110
+
+SP = 7
 
 
 class CPU:
@@ -15,9 +19,26 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.pc = 0
+        self.ir = 0
         self.ram = {}
         self.output = []
         self.reg = [0] * 8
+        self.branchtable = {}
+        self.reset()
+        self.branchtable[LDI] = {"fn": self.handle_ldi, "step": 3}
+        self.branchtable[PRN] = {"fn": self.handle_prn, "step": 2}
+        self.branchtable[MUL] = {"fn": self.handle_mul, "step": 3}
+        self.branchtable[HLT] = {"fn": self.handle_hlt, "step": 1}
+        self.branchtable[PUSH] = {"fn": self.handle_push, "step": 2}
+        self.branchtable[POP] = {"fn": self.handle_pop, "step": 2}
+
+    def reset(self):
+        """
+        This method resets the CPU's registers to their defaults.
+        """
+        self.pc = 0  # : Program Counter
+        self.ir = 0  # : Instruction Register
+        self.running = False
 
     def load(self):
         """Load a program into memory."""
@@ -37,7 +58,7 @@ class CPU:
                         address += 1
         except FileNotFoundError:
             print("I can not find the file!!!!!!!!")
-        print(self.ram)
+        # print(self.ram)
         # program = [
         #     # From print8.ls8
         #     0b10000010,  # LDI R0,8
@@ -58,6 +79,8 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         # elif op == "SUB": etc
+        # elif op == "MUL":
+        #     self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -81,49 +104,49 @@ class CPU:
 
         print()
 
+    def handle_ldi(self, operand_a, operand_b):
+        num = self.ram[operand_b]
+        # get the reg index.
+        reg_index = self.ram[operand_a]
+        # put the number in the registers list at the index of reg_index
+        self.ram_write(num, reg_index)
+
+    def handle_prn(self, operand_a, operand_b):
+        reg_index = self.ram[operand_a]
+        print(self.reg[reg_index])
+
+    def handle_hlt(self, operand_a, operand_b):
+        self.running = False
+
+    def handle_mul(self, operand_a, operand_b):
+        reg_index1 = self.ram[operand_a]
+        reg_index2 = self.ram[operand_b]
+        # self.alu("MUL", reg_index1, reg_index2)
+        self.reg[reg_index1] *= self.reg[reg_index2]
+        self.ram_write(self.reg[reg_index1], reg_index1)
+
+    def handle_push(self, operand_a, operand_b):
+        self.reg[SP] -= 1
+        reg_index = self.ram[operand_a]
+        self.ram[self.reg[SP]] = self.reg[reg_index]
+
+    def handle_pop(self, operand_a, operand_b):
+        reg_index = self.ram[operand_a]
+        self.reg[reg_index] = self.ram[self.reg[SP]]
+        self.reg[SP] += 1
+
     def run(self):
         """Run the CPU."""
-        running = True
+        self.reg[SP] = 0xf4
+        self.running = True
 
-        while running:
+        while self.running:
             inst = self.ram_read(self.pc)
             operand_a = self.pc + 1
             operand_b = self.pc + 2
 
-            # decode
-            if inst == HLT:
-                # execute
-                running = False
-                self.pc += 1
-
-            elif inst == LDI:
-                # execute
-                # get the num.
-                num = self.ram[operand_b]
-                # get the reg index.
-                reg_index = self.ram[operand_a]
-                # put the number in the registers list at the index of reg_index
-                self.ram_write(num, reg_index)
-                self.pc += 3
-
-            elif inst == PRN:
-                # execute
-                reg_index = self.ram[operand_a]
-                print(self.reg[reg_index])
-                self.pc += 2
-
-            elif inst == MUL:
-                # execute
-                reg_index1 = self.ram[operand_a]
-                reg_index2 = self.ram[operand_b]
-                res = self.reg[reg_index1] * self.reg[reg_index2]
-                self.ram_write(res, reg_index1)
-                self.pc += 3
-
-            # decode
-            else:
-                print(f"Unknown instruction {inst}")
-                running = False
+            self.branchtable[inst]["fn"](operand_a, operand_b)
+            self.pc += self.branchtable[inst]["step"]
 
     def ram_read(self, pc):
         if pc:
