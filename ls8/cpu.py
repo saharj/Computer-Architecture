@@ -12,6 +12,10 @@ POP = 0b01000110
 CALL = 0b01010000
 RET = 0b00010001
 ADD = 0b10100000
+CMP = 0b10100111
+JEQ = 0b01010101
+JNE = 0b01010110
+JMP = 0b01010100
 
 SP = 7
 
@@ -37,6 +41,7 @@ class CPU:
         self.branchtable[CALL] = {"fn": self.handle_call, "step": 0}
         self.branchtable[RET] = {"fn": self.handle_ret, "step": 0}
         self.branchtable[ADD] = {"fn": self.handle_add, "step": 3}
+        self.branchtable[JMP] = {"fn": self.handle_jmp, "step": 0}
 
     def reset(self):
         """
@@ -155,6 +160,12 @@ class CPU:
         self.pc = self.ram[self.reg[SP]]
         self.reg[SP] += 1
 
+    def handle_jmp(self, operand_a, operand_b):
+        reg_index = operand_a
+        addr = self.ram[reg_index]
+
+        self.pc = self.reg[addr]
+
     def handle_add(self, operand_a, operand_b):
         reg_index1 = self.ram[operand_a]
         reg_index2 = self.ram[operand_b]
@@ -167,6 +178,7 @@ class CPU:
         self.running = True
 
         while self.running:
+            # print(self.pc)
             inst = self.ram_read(self.pc)
 
             operand_a = self.pc + 1
