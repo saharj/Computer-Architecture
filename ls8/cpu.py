@@ -18,6 +18,8 @@ JNE = 0b01010110
 JMP = 0b01010100
 
 SP = 7
+# flag register
+FR = 5
 
 
 class CPU:
@@ -42,6 +44,9 @@ class CPU:
         self.branchtable[RET] = {"fn": self.handle_ret, "step": 0}
         self.branchtable[ADD] = {"fn": self.handle_add, "step": 3}
         self.branchtable[JMP] = {"fn": self.handle_jmp, "step": 0}
+        self.branchtable[CMP] = {"fn": self.handle_cmp, "step": 3}
+        self.branchtable[JEQ] = {"fn": self.handle_jeq, "step": 0}
+        self.branchtable[JNE] = {"fn": self.handle_jne, "step": 0}
 
     def reset(self):
         """
@@ -55,7 +60,7 @@ class CPU:
         """Load a program into memory."""
 
         try:
-            file_name = sys.argv[1]
+            file_name = "/Users/sahar/Documents/lambda-excercise/Computer-Architecture/ls8/examples/sprintchallenge.ls8"
             with open(file_name) as f:
                 address = 0
 
@@ -125,6 +130,7 @@ class CPU:
     def handle_prn(self, operand_a, operand_b):
         reg_index = self.ram[operand_a]
         print(self.reg[reg_index])
+        self.reg[FR] = 0
 
     def handle_hlt(self, operand_a, operand_b):
         self.running = False
@@ -159,6 +165,30 @@ class CPU:
     def handle_ret(self, operand_a, operand_b):
         self.pc = self.ram[self.reg[SP]]
         self.reg[SP] += 1
+
+    def handle_cmp(self, operand_a, operand_b):
+        if self.ram[operand_a] == self.ram[operand_b]:
+            self.reg[FR] = 1
+        else:
+            self.reg[FR] = 0
+
+    def handle_jeq(self, operand_a, operand_b):
+        if self.reg[FR] == 1:
+            reg_index = operand_a
+            addr = self.ram[reg_index]
+
+            self.pc = self.reg[addr]
+        else:
+            self.pc += 2
+
+    def handle_jne(self, operand_a, operand_b):
+        if self.reg[FR] == 0:
+            reg_index = operand_a
+            addr = self.ram[reg_index]
+
+            self.pc = self.reg[addr]
+        else:
+            self.pc += 2
 
     def handle_jmp(self, operand_a, operand_b):
         reg_index = operand_a
