@@ -167,7 +167,7 @@ class CPU:
         self.reg[SP] += 1
 
     def handle_cmp(self, operand_a, operand_b):
-        if self.ram[operand_a] == self.ram[operand_b]:
+        if self.reg[self.ram[operand_a]] == self.reg[self.ram[operand_b]]:
             self.reg[FR] = 1
         else:
             self.reg[FR] = 0
@@ -208,7 +208,6 @@ class CPU:
         self.running = True
 
         while self.running:
-            # print(self.pc)
             inst = self.ram_read(self.pc)
 
             operand_a = self.pc + 1
