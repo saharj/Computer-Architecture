@@ -9,6 +9,9 @@ MUL = 0b10100010
 HLT = 0b00000001
 PUSH = 0b01000101
 POP = 0b01000110
+CALL = 0b01010000
+RET = 0b00010001
+ADD = 0b10100000
 
 SP = 7
 
@@ -31,6 +34,9 @@ class CPU:
         self.branchtable[HLT] = {"fn": self.handle_hlt, "step": 1}
         self.branchtable[PUSH] = {"fn": self.handle_push, "step": 2}
         self.branchtable[POP] = {"fn": self.handle_pop, "step": 2}
+        self.branchtable[CALL] = {"fn": self.handle_call, "step": 0}
+        self.branchtable[RET] = {"fn": self.handle_ret, "step": 0}
+        self.branchtable[ADD] = {"fn": self.handle_add, "step": 3}
 
     def reset(self):
         """
@@ -79,8 +85,8 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         # elif op == "SUB": etc
-        # elif op == "MUL":
-        #     self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -121,8 +127,7 @@ class CPU:
     def handle_mul(self, operand_a, operand_b):
         reg_index1 = self.ram[operand_a]
         reg_index2 = self.ram[operand_b]
-        # self.alu("MUL", reg_index1, reg_index2)
-        self.reg[reg_index1] *= self.reg[reg_index2]
+        self.alu("MUL", reg_index1, reg_index2)
         self.ram_write(self.reg[reg_index1], reg_index1)
 
     def handle_push(self, operand_a, operand_b):
@@ -135,6 +140,27 @@ class CPU:
         self.reg[reg_index] = self.ram[self.reg[SP]]
         self.reg[SP] += 1
 
+    def handle_call(self, operand_a, operand_b):
+        next_pc = operand_b
+
+        self.reg[SP] -= 1
+        self.ram[self.reg[SP]] = next_pc
+
+        reg_index = operand_a
+        addr = self.ram[reg_index]
+
+        self.pc = self.reg[addr]
+
+    def handle_ret(self, operand_a, operand_b):
+        self.pc = self.ram[self.reg[SP]]
+        self.reg[SP] += 1
+
+    def handle_add(self, operand_a, operand_b):
+        reg_index1 = self.ram[operand_a]
+        reg_index2 = self.ram[operand_b]
+        self.alu("ADD", reg_index1, reg_index2)
+        self.ram_write(self.reg[reg_index1], reg_index1)
+
     def run(self):
         """Run the CPU."""
         self.reg[SP] = 0xf4
@@ -142,17 +168,16 @@ class CPU:
 
         while self.running:
             inst = self.ram_read(self.pc)
+
             operand_a = self.pc + 1
             operand_b = self.pc + 2
 
             self.branchtable[inst]["fn"](operand_a, operand_b)
+
             self.pc += self.branchtable[inst]["step"]
 
     def ram_read(self, pc):
-        if pc:
-            self.pc = pc
-
-        return self.ram[self.pc]
+        return self.ram[pc]
 
     def ram_write(self, num, index):
         self.reg[index] = num
